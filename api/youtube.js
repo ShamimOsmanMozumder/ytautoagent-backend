@@ -6,34 +6,41 @@ export default async function handler(req, res) {
 
   const { action, niche, prompt } = req.query;
   const YT_KEY = process.env.YOUTUBE_API_KEY;
-  const GEMINI_KEY = process.env.GEMINI_API_KEY;
+  const OR_KEY = process.env.OPENROUTER_API_KEY;
   const BASE = "https://www.googleapis.com/youtube/v3";
 
   try {
     // ── PING ──────────────────────────────────────────────────────────────────
     if (action === "ping") {
-      return res.status(200).json({ ok: true, message: "YTAutoAgent backend is live!", youtube: !!YT_KEY, gemini: !!GEMINI_KEY, time: new Date().toISOString() });
+      return res.status(200).json({ ok: true, message: "YTAutoAgent backend is live!", youtube: !!YT_KEY, openrouter: !!OR_KEY, time: new Date().toISOString() });
     }
 
-    // ── GEMINI AI (GET with prompt in query) ──────────────────────────────────
+    // ── AI via OpenRouter ─────────────────────────────────────────────────────
     if (action === "ai") {
-      if (!GEMINI_KEY) return res.status(500).json({ error: "Gemini key missing" });
+      if (!OR_KEY) return res.status(500).json({ error: "OpenRouter key missing" });
       if (!prompt) return res.status(400).json({ error: "prompt param missing" });
 
-      const r = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-001:generateContent?key=${GEMINI_KEY}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: decodeURIComponent(prompt) }] }],
-            generationConfig: { maxOutputTokens: 1500, temperature: 0.8 }
-          })
-        }
-      );
+      const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${OR_KEY}`,
+          "HTTP-Referer": "https://ytautoagent-backend.vercel.app",
+          "X-Title": "YTAutoAgent"
+        },
+        body: JSON.stringify({
+          model: "meta-llama/llama-3.3-70b-instruct:free",
+          messages: [
+            { role: "system", content: "You are a world-class YouTube automation expert. Be highly actionable, detailed, use emojis." },
+            { role: "user", content: decodeURIComponent(prompt) }
+          ],
+          max_tokens: 1500
+        })
+      });
+
       const d = await r.json();
-      if (!r.ok) return res.status(400).json({ error: d.error?.message || "Gemini error" });
-      const text = d.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      if (!r.ok) return res.status(400).json({ error: d.error?.message || "OpenRouter error" });
+      const text = d.choices?.[0]?.message?.content || "";
       return res.status(200).json({ text });
     }
 
