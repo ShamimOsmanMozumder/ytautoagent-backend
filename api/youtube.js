@@ -19,7 +19,9 @@ export default async function handler(req, res) {
     if (action === "ai") {
       if (req.method !== "POST") return res.status(405).json({ error: "POST required" });
       if (!GEMINI_KEY) return res.status(500).json({ error: "Gemini API key not configured on server" });
-      const body = req.body || {};
+      // Parse body — handle both string and object
+      let body = req.body || {};
+      if (typeof body === "string") { try { body = JSON.parse(body); } catch(e) { body = {}; } }
       const prompt = body.prompt;
       if (!prompt) return res.status(400).json({ error: "prompt required" });
       const geminiRes = await fetch(
