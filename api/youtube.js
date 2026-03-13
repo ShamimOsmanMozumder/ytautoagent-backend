@@ -1,3 +1,9 @@
+export const config = {
+  api: {
+    bodyParser: true,
+  },
+};
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -10,17 +16,11 @@ export default async function handler(req, res) {
   const BASE = "https://www.googleapis.com/youtube/v3";
 
   try {
-    // ── GEMINI AI ──────────────────────────────────────────────────────────────
+    // ── GEMINI AI ─────────────────────────────────────────────────────────────
     if (action === "ai") {
       if (!GEMINI_KEY) return res.status(500).json({ error: "Gemini key missing" });
-      
-      // Read raw body
-      let prompt = "";
-      if (req.body) {
-        const b = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
-        prompt = b.prompt || "";
-      }
-      if (!prompt) return res.status(400).json({ error: "prompt missing" });
+      const prompt = req.body?.prompt;
+      if (!prompt) return res.status(400).json({ error: "prompt missing", body: req.body });
 
       const r = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_KEY}`,
