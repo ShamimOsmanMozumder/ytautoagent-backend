@@ -6,28 +6,21 @@ export default async function handler(req, res) {
 
   const { action, niche, prompt } = req.query;
   const YT_KEY = process.env.YOUTUBE_API_KEY;
+  const GROQ_KEY = process.env.GROQ_API_KEY;
   const BASE = "https://www.googleapis.com/youtube/v3";
 
   try {
-    // ── PING ──────────────────────────────────────────────────────────────────
     if (action === "ping") {
-      return res.status(200).json({ ok: true, message: "YTAutoAgent backend is live!", youtube: !!YT_KEY, openrouter: !!OR_KEY, time: new Date().toISOString() });
+      return res.status(200).json({ ok: true, message: "YTAutoAgent backend is live!", youtube: !!YT_KEY, groq: !!GROQ_KEY, time: new Date().toISOString() });
     }
 
-    // ── AI via OpenRouter ─────────────────────────────────────────────────────
     if (action === "ai") {
-      if (!OR_KEY) return res.status(500).json({ error: "OpenRouter key missing" });
-      if (!prompt) return res.status(400).json({ error: "prompt param missing" });
-
-      const GROQ_KEY = process.env.GROQ_API_KEY;
       if (!GROQ_KEY) return res.status(500).json({ error: "Groq key missing" });
+      if (!prompt) return res.status(400).json({ error: "prompt missing" });
 
       const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${GROQ_KEY}`
-        },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_KEY}` },
         body: JSON.stringify({
           model: "llama-3.3-70b-versatile",
           messages: [
@@ -37,7 +30,6 @@ export default async function handler(req, res) {
           max_tokens: 1500
         })
       });
-
       const d = await r.json();
       if (!r.ok) return res.status(400).json({ error: d.error?.message || "Groq error" });
       const text = d.choices?.[0]?.message?.content || "";
@@ -46,7 +38,6 @@ export default async function handler(req, res) {
 
     if (!YT_KEY) return res.status(500).json({ error: "YouTube key missing" });
 
-    // ── TRENDING ──────────────────────────────────────────────────────────────
     if (action === "trending") {
       if (!niche) return res.status(400).json({ error: "niche required" });
       const KW = {
