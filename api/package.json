@@ -1,0 +1,9 @@
+{
+  "name": "ytautoagent-backend",
+  "version": "1.0.0",
+  "description": "YTAutoAgent YouTube API proxy — deployed on Vercel",
+  "private": true,
+  "scripts": {
+    "dev": "vercel dev"
+  }
+}
