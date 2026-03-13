@@ -1,26 +1,24 @@
-export const config = {
-  api: {
-    bodyParser: true,
-  },
-};
-
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
   if (req.method === "OPTIONS") return res.status(200).end();
 
-  const { action, niche } = req.query;
+  const { action, niche, prompt } = req.query;
   const YT_KEY = process.env.YOUTUBE_API_KEY;
   const GEMINI_KEY = process.env.GEMINI_API_KEY;
   const BASE = "https://www.googleapis.com/youtube/v3";
 
   try {
-    // ── GEMINI AI ─────────────────────────────────────────────────────────────
+    // ── PING ──────────────────────────────────────────────────────────────────
+    if (action === "ping") {
+      return res.status(200).json({ ok: true, message: "YTAutoAgent backend is live!", youtube: !!YT_KEY, gemini: !!GEMINI_KEY, time: new Date().toISOString() });
+    }
+
+    // ── GEMINI AI (GET with prompt in query) ──────────────────────────────────
     if (action === "ai") {
       if (!GEMINI_KEY) return res.status(500).json({ error: "Gemini key missing" });
-      const prompt = req.body?.prompt;
-      if (!prompt) return res.status(400).json({ error: "prompt missing", body: req.body });
+      if (!prompt) return res.status(400).json({ error: "prompt param missing" });
 
       const r = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_KEY}`,
@@ -28,7 +26,7 @@ export default async function handler(req, res) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
+            contents: [{ parts: [{ text: decodeURIComponent(prompt) }] }],
             generationConfig: { maxOutputTokens: 1500, temperature: 0.8 }
           })
         }
@@ -37,11 +35,6 @@ export default async function handler(req, res) {
       if (!r.ok) return res.status(400).json({ error: d.error?.message || "Gemini error" });
       const text = d.candidates?.[0]?.content?.parts?.[0]?.text || "";
       return res.status(200).json({ text });
-    }
-
-    // ── PING ──────────────────────────────────────────────────────────────────
-    if (action === "ping") {
-      return res.status(200).json({ ok: true, message: "YTAutoAgent backend is live!", youtube: !!YT_KEY, gemini: !!GEMINI_KEY, time: new Date().toISOString() });
     }
 
     if (!YT_KEY) return res.status(500).json({ error: "YouTube key missing" });
