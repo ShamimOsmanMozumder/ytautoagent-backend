@@ -6,7 +6,6 @@ export default async function handler(req, res) {
 
   const { action, niche, prompt } = req.query;
   const YT_KEY = process.env.YOUTUBE_API_KEY;
-  const OR_KEY = process.env.OPENROUTER_API_KEY;
   const BASE = "https://www.googleapis.com/youtube/v3";
 
   try {
@@ -20,46 +19,28 @@ export default async function handler(req, res) {
       if (!OR_KEY) return res.status(500).json({ error: "OpenRouter key missing" });
       if (!prompt) return res.status(400).json({ error: "prompt param missing" });
 
-      const MODELS = [
-        "meta-llama/llama-3.3-70b-instruct:free",
-        "mistralai/mistral-7b-instruct:free",
-        "google/gemma-3-4b-it:free"
-      ];
+      const GROQ_KEY = process.env.GROQ_API_KEY;
+      if (!GROQ_KEY) return res.status(500).json({ error: "Groq key missing" });
 
-      let text = "";
-      let lastError = "";
+      const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${GROQ_KEY}`
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages: [
+            { role: "system", content: "You are a world-class YouTube automation expert. Be highly actionable, detailed, use emojis." },
+            { role: "user", content: decodeURIComponent(prompt) }
+          ],
+          max_tokens: 1500
+        })
+      });
 
-      for (const model of MODELS) {
-        try {
-          const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${OR_KEY}`,
-              "HTTP-Referer": "https://ytautoagent-backend.vercel.app",
-              "X-Title": "YTAutoAgent"
-            },
-            body: JSON.stringify({
-              model,
-              messages: [
-                { role: "system", content: "You are a world-class YouTube automation expert. Be highly actionable, detailed, use emojis." },
-                { role: "user", content: decodeURIComponent(prompt) }
-              ],
-              max_tokens: 1500
-            })
-          });
-          const d = await r.json();
-          if (r.ok && d.choices?.[0]?.message?.content) {
-            text = d.choices[0].message.content;
-            break;
-          }
-          lastError = d.error?.message || "Model unavailable";
-        } catch(e) {
-          lastError = e.message;
-        }
-      }
-
-      if (!text) return res.status(400).json({ error: lastError || "All models failed" });
+      const d = await r.json();
+      if (!r.ok) return res.status(400).json({ error: d.error?.message || "Groq error" });
+      const text = d.choices?.[0]?.message?.content || "";
       return res.status(200).json({ text });
     }
 
