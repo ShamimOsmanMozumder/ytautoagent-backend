@@ -29,7 +29,7 @@ export default async function handler(req, res) {
           "X-Title": "YTAutoAgent"
         },
         body: JSON.stringify({
-          model: "meta-llama/llama-3.3-70b-instruct:free",
+          model: "mistralai/mistral-7b-instruct:free",
           messages: [
             { role: "system", content: "You are a world-class YouTube automation expert. Be highly actionable, detailed, use emojis." },
             { role: "user", content: decodeURIComponent(prompt) }
