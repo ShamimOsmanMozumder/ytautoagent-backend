@@ -42,7 +42,7 @@ export default async function handler(req, res) {
   // Get real channel stats from YouTube API
   const getChannelData = async (channelIds) => {
     if (!channelIds.length) return [];
-    const ids = [...new Set(channelIds)].slice(0, 10).join(",");
+    const ids = [...new Set(channelIds)].slice(0, 50).join(",");
     const cr = await fetch(`${BASE}/channels?part=statistics,snippet&id=${ids}&key=${YT_KEY}`);
     const cd = await cr.json();
     return (cd.items || []).map(ch => ({
@@ -98,25 +98,40 @@ export default async function handler(req, res) {
     const terms = SEARCH_TERMS[niche] || [niche + " facts", niche + " explained"];
     let allChannelIds = new Set();
 
-    // Search with multiple terms to find more channels
-    for (const term of terms.slice(0, 3)) {
+    // Search ALL terms to get maximum channels
+    for (const term of terms) {
       const sr = await fetch(
-        `${BASE}/search?part=snippet&q=${encodeURIComponent(term)}&type=channel&maxResults=10&relevanceLanguage=en&regionCode=US&key=${YT_KEY}`
+        `${BASE}/search?part=snippet&q=${encodeURIComponent(term)}&type=channel&maxResults=15&relevanceLanguage=en&regionCode=US&key=${YT_KEY}`
       );
       const sd = await sr.json();
       if (sr.ok) {
         (sd.items || [])
-          .filter(i => isEnglish(i.snippet.title || "") && isCreatorChannel(i.snippet.title))
+          .filter(i => {
+            const title = i.snippet.title || "";
+            const desc = i.snippet.description || "";
+            // Must be English AND creator channel
+            return isEnglish(title) && isCreatorChannel(title) && 
+                   // Extra check: description should be mostly English
+                   (desc.length === 0 || isEnglish(desc.slice(0, 100)));
+          })
           .forEach(i => allChannelIds.add(i.id.channelId));
       }
     }
 
-    // Get real stats
-    const channels = await getChannelData([...allChannelIds]);
+    // Get real stats in batches (max 50 IDs)
+    const idArray = [...allChannelIds].slice(0, 50);
+    let allChannels = [];
+    
+    // Fetch in batches of 10
+    for(let i = 0; i < idArray.length; i += 10) {
+      const batch = idArray.slice(i, i+10);
+      const batchData = await getChannelData(batch);
+      allChannels.push(...batchData);
+    }
 
-    // Filter: only established channels (50K+ subs), sort by subscribers
-    return channels
-      .filter(ch => ch.subs >= 50000 && isCreatorChannel(ch.name))
+    // Filter: English channels, 50K+ subs, creator channels only
+    return allChannels
+      .filter(ch => ch.subs >= 50000 && isCreatorChannel(ch.name) && isEnglish(ch.name))
       .sort((a, b) => b.subs - a.subs)
       .slice(0, 10);
   };
