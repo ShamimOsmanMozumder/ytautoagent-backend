@@ -65,7 +65,7 @@ export default async function handler(req, res) {
     const kw = (KW[niche]||niche) + " channel english";
 
     // Search for channels directly
-    const sr = await fetch(`${BASE}/search?part=snippet&q=${encodeURIComponent(kw)}&type=channel&maxResults=15&relevanceLanguage=en&regionCode=US&key=${YT_KEY}`);
+    const sr = await fetch(`${BASE}/search?part=snippet&q=${encodeURIComponent(kw)}&type=channel&maxResults=25&relevanceLanguage=en&regionCode=US&key=${YT_KEY}`);
     const sd = await sr.json();
     if (!sr.ok) throw new Error(sd.error?.message);
 
@@ -80,7 +80,7 @@ export default async function handler(req, res) {
     return channels
       .filter(ch => ch.subs > 10000) // minimum 10K subs
       .sort((a,b) => b.subs - a.subs)
-      .slice(0,8);
+      .slice(0,10);
   };
 
   // Fetch RISING channels (new channels growing fast — last 1 year)
@@ -111,7 +111,7 @@ export default async function handler(req, res) {
     return channels
       .filter(ch => ch.subs < 500000 && ch.subs > 1000)
       .sort((a,b) => b.totalViews - a.totalViews)
-      .slice(0,8);
+      .slice(0,10);
   };
 
   // Fetch trending videos (this week - 7 days)
@@ -195,10 +195,10 @@ export default async function handler(req, res) {
       ).join("\n");
 
       const channelSummary = channels.slice(0,6).map(ch =>
-        `• ${ch.name} | ${ch.url} | ${ch.subs.toLocaleString()} subs | ${ch.totalViews.toLocaleString()} total views`
+        `• ${ch.name} | URL: ${ch.url} | ${ch.subs.toLocaleString()} subs | ${ch.totalViews.toLocaleString()} total views`
       ).join("\n");
 
-      const analysisPrompt = `REAL YouTube data for "${niche}" niche:
+      const analysisPrompt = `REAL YouTube data for "${niche}" niche. IMPORTANT: When mentioning any channel, always include its full URL from the data below.
 
 TRENDING VIDEOS THIS WEEK:
 ${videoSummary}
