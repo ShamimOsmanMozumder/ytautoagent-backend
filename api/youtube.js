@@ -168,46 +168,72 @@ export default async function handler(req, res) {
     }
 
     if (action === "top-channels") {
-      if (!YT_KEY) return res.status(500).json({ error:"YouTube key missing" });
+      if (!YT_KEY || !GROQ_KEY) return res.status(500).json({ error:"Keys missing" });
       
-      // Search for channels in this niche
-      const KW = {
-        finance:"personal finance investing",health:"health wellness tips",
-        tech:"artificial intelligence tech review",motivation:"motivation success mindset",
-        relationship:"relationship advice psychology",business:"business entrepreneurship",
-        gaming:"gaming commentary",food:"food recipes cooking",travel:"travel vlog documentary",
-        education:"education explained",fitness:"fitness workout training",
-        crypto:"cryptocurrency bitcoin investing",history:"history documentary dark facts",
-        mystery:"mystery unsolved dark secrets",animals:"wildlife nature documentary",
-        news:"facts documentary explained",relationship:"relationship advice dating",
-      };
-      const kw = KW[niche] || niche;
+      // Step 1: Ask Groq to list top known YouTube channels for this niche
+      const channelListPrompt = `List the top 12 most successful and well-known YouTube channels for the "${niche}" niche that create FACELESS or animation-based content (NOT TV channels, NOT news networks, NOT mainstream media).
+
+Requirements:
+- Individual YouTube creators only
+- Faceless or animated channels preferred
+- Must be channels a new creator can learn from and replicate
+- English language channels only
+
+Reply with ONLY a JSON array like this, nothing else:
+[
+  {"name": "Channel Name", "handle": "@channelhandle"},
+  ...
+]`;
+
+      const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_KEY}` },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          messages: [
+            { role: "system", content: "You are a YouTube expert. Reply with valid JSON only, no markdown, no explanation." },
+            { role: "user", content: channelListPrompt }
+          ],
+          max_tokens: 600,
+          temperature: 0.1
+        })
+      });
+      const groqData = await groqRes.json();
+      const groqText = groqData.choices?.[0]?.message?.content || "[]";
       
-      // Search multiple keyword variations to get more channels
-      const searches = [kw, kw+" channel", kw+" youtube"];
+      let channelList = [];
+      try {
+        const cleaned = groqText.replace(/```json|```/g,"").trim();
+        channelList = JSON.parse(cleaned);
+      } catch(e) {
+        channelList = [];
+      }
+
+      // Step 2: Search each channel on YouTube to get real stats
       let allChannelIds = new Set();
       
-      for(const q of searches) {
-        const sr = await fetch(`${BASE}/search?part=snippet&q=${encodeURIComponent(q)}&type=channel&maxResults=15&relevanceLanguage=en&regionCode=US&key=${YT_KEY}`);
+      for(const ch of channelList.slice(0,12)) {
+        const query = ch.handle || ch.name;
+        const sr = await fetch(`${BASE}/search?part=snippet&q=${encodeURIComponent(query)}&type=channel&maxResults=3&key=${YT_KEY}`);
         const sd = await sr.json();
-        if(sr.ok) {
-          (sd.items||[])
-            .filter(i => isEnglish(i.snippet.title||""))
-            .forEach(i => allChannelIds.add(i.id.channelId));
+        if(sr.ok && sd.items?.length) {
+          // Find best match by name similarity
+          const match = sd.items.find(i => 
+            i.snippet.title.toLowerCase().includes(ch.name.toLowerCase().split(" ")[0]) ||
+            ch.name.toLowerCase().includes(i.snippet.title.toLowerCase().split(" ")[0])
+          ) || sd.items[0];
+          if(match) allChannelIds.add(match.id.channelId);
         }
       }
-      
-      // Get real stats for all found channels
-      const allChannels = await getChannelData([...allChannelIds]);
-      
-      // Filter: minimum 50K subs = established channel
-      const topChannels = allChannels
-        .filter(ch => ch.subs >= 50000)
+
+      // Step 3: Get real YouTube stats for found channels
+      const channels = await getChannelData([...allChannelIds]);
+      const filtered = channels
+        .filter(ch => isCreatorChannel(ch) && ch.subs > 1000)
         .sort((a,b) => b.subs - a.subs)
         .slice(0,10);
-      
-      const filteredChannels = topChannels.filter(ch => isCreatorChannel(ch));
-      return res.status(200).json({ channels: filteredChannels });
+
+      return res.status(200).json({ channels: filtered });
     }
 
     if (action === "rising-channels") {
