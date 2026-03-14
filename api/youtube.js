@@ -9,6 +9,30 @@ export default async function handler(req, res) {
   const GROQ_KEY = process.env.GROQ_API_KEY;
   const BASE = "https://www.googleapis.com/youtube/v3";
 
+  // In-memory cache — saves YouTube API quota
+  // Cache persists as long as Vercel function is warm (minutes to hours)
+  if (!global._ytCache) global._ytCache = {};
+  
+  const CACHE_TTL = {
+    "top-channels": 24 * 60 * 60 * 1000,  // 24 hours — channels don't change often
+    "trending":      60 * 60 * 1000,        // 1 hour — trending changes daily
+    "rising-channels": 12 * 60 * 60 * 1000, // 12 hours
+  };
+
+  const cacheGet = (key) => {
+    const item = global._ytCache[key];
+    if (!item) return null;
+    if (Date.now() - item.time > item.ttl) {
+      delete global._ytCache[key];
+      return null;
+    }
+    return item.data;
+  };
+
+  const cacheSet = (key, data, ttl) => {
+    global._ytCache[key] = { data, time: Date.now(), ttl };
+  };
+
   const isEnglish = (text) => {
     if(!text) return false;
     let nonLatin = 0;
@@ -56,7 +80,7 @@ export default async function handler(req, res) {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_KEY}` },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "meta-llama/llama-4-scout-17b-16e-instruct",
         messages: [{ role: "system", content: system }, { role: "user", content: user }],
         max_tokens: 1500
       })
@@ -202,8 +226,14 @@ export default async function handler(req, res) {
 
     if(action==="top-channels") {
       if(!YT_KEY) return res.status(500).json({error:"YouTube key missing"});
+      const cacheKey = "top-channels:"+niche;
+      const cached = cacheGet(cacheKey);
+      if(cached) {
+        return res.status(200).json({channels: cached, cached: true});
+      }
       const channels = await fetchTopChannels(niche);
-      return res.status(200).json({channels});
+      if(channels.length > 0) cacheSet(cacheKey, channels, CACHE_TTL["top-channels"]);
+      return res.status(200).json({channels, cached: false});
     }
 
     if(action==="debug-channels") {
@@ -223,14 +253,22 @@ export default async function handler(req, res) {
 
     if(action==="rising-channels") {
       if(!YT_KEY) return res.status(500).json({error:"YouTube key missing"});
+      const cacheKey = "rising:"+niche;
+      const cached = cacheGet(cacheKey);
+      if(cached) return res.status(200).json({channels: cached, cached: true});
       const channels = await fetchRisingChannels(niche);
-      return res.status(200).json({channels});
+      if(channels.length > 0) cacheSet(cacheKey, channels, CACHE_TTL["rising-channels"]);
+      return res.status(200).json({channels, cached: false});
     }
 
     if(action==="trending") {
       if(!YT_KEY) return res.status(500).json({error:"YouTube key missing"});
+      const cacheKey = "trending:"+niche;
+      const cached = cacheGet(cacheKey);
+      if(cached) return res.status(200).json({...cached, cached: true});
       const result = await fetchTrending(niche);
-      return res.status(200).json(result);
+      if(result.videos?.length > 0) cacheSet(cacheKey, result, CACHE_TTL["trending"]);
+      return res.status(200).json({...result, cached: false});
     }
 
     if(action==="ai") {
