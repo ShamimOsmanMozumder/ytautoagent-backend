@@ -206,6 +206,21 @@ export default async function handler(req, res) {
       return res.status(200).json({channels});
     }
 
+    if(action==="debug-channels") {
+      if(!YT_KEY) return res.status(500).json({error:"YouTube key missing"});
+      const term = niche || "history explained";
+      const sr = await fetch(
+        `${BASE}/search?part=snippet&q=${encodeURIComponent(term)}&type=channel&maxResults=10&relevanceLanguage=en&regionCode=US&key=${YT_KEY}`
+      );
+      const sd = await sr.json();
+      const raw = (sd.items||[]).map(i=>({
+        id: i.id.channelId,
+        title: i.snippet.title,
+        desc: i.snippet.description?.slice(0,50)
+      }));
+      return res.status(200).json({raw, total: raw.length, error: sd.error});
+    }
+
     if(action==="rising-channels") {
       if(!YT_KEY) return res.status(500).json({error:"YouTube key missing"});
       const channels = await fetchRisingChannels(niche);
