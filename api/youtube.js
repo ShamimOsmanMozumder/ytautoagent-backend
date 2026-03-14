@@ -78,21 +78,81 @@ export default async function handler(req, res) {
   // Fetch top established channels using multiple search strategies
   const fetchTopChannels = async (niche) => {
     const SEARCH_TERMS = {
-      mystery: ["mystery facts","unsolved mysteries","dark history facts","unexplained mysteries"],
-      history: ["history facts","dark history","ancient history documentary","world history"],
-      finance: ["personal finance tips","investing money","financial freedom","passive income"],
-      tech: ["artificial intelligence explained","tech explained","future technology","AI news"],
-      motivation: ["motivation success","self improvement","mindset success","life advice"],
-      business: ["business tips","entrepreneur success","startup advice","make money online"],
-      gaming: ["gaming facts","video game history","gaming explained","game analysis"],
-      food: ["food science","cooking facts","food history","recipe science"],
-      travel: ["travel facts","hidden places","travel documentary","world travel"],
-      education: ["explained simply","science facts","education documentary","learn something"],
-      fitness: ["fitness science","workout tips","health science","body transformation"],
-      crypto: ["crypto explained","bitcoin facts","blockchain explained","crypto investing"],
-      animals: ["animal facts","wildlife documentary","nature facts","animal behavior"],
-      relationship: ["psychology facts","human behavior","relationship advice","social skills"],
-      news: ["facts explained","world facts","did you know","amazing facts"],
+      mystery: [
+        "mystery youtube channel", "unsolved mysteries explained", 
+        "dark secrets youtube", "conspiracy theories explained",
+        "true crime mystery channel", "paranormal explained youtube"
+      ],
+      history: [
+        "history youtube channel", "dark history explained",
+        "ancient civilization documentary", "historical events explained",
+        "world history channel", "history facts documentary"
+      ],
+      finance: [
+        "personal finance youtube", "investing for beginners channel",
+        "stock market explained channel", "financial independence youtube",
+        "money tips youtube channel", "passive income investing"
+      ],
+      tech: [
+        "technology youtube channel", "artificial intelligence explained",
+        "future technology documentary", "science technology channel",
+        "tech explained youtube", "gadgets technology review"
+      ],
+      motivation: [
+        "motivation youtube channel", "self improvement explained",
+        "success mindset channel", "personal development youtube",
+        "life advice channel", "discipline motivation youtube"
+      ],
+      business: [
+        "business youtube channel", "entrepreneurship explained",
+        "startup success stories", "make money online channel",
+        "side hustle youtube", "business strategy explained"
+      ],
+      gaming: [
+        "gaming youtube channel", "video game documentary",
+        "gaming history explained", "game facts channel",
+        "gaming lore explained", "esports documentary youtube"
+      ],
+      food: [
+        "food youtube channel", "cooking explained documentary",
+        "food science channel", "recipe youtube channel",
+        "food history explained", "culinary documentary youtube"
+      ],
+      travel: [
+        "travel youtube channel", "travel documentary explained",
+        "hidden places world youtube", "adventure travel channel",
+        "country explained youtube", "travel facts channel"
+      ],
+      education: [
+        "education youtube channel", "science explained channel",
+        "learn something new youtube", "knowledge documentary channel",
+        "how things work explained", "educational documentary youtube"
+      ],
+      fitness: [
+        "fitness youtube channel", "workout explained channel",
+        "health science youtube", "body transformation channel",
+        "exercise science explained", "nutrition fitness youtube"
+      ],
+      crypto: [
+        "cryptocurrency youtube channel", "bitcoin explained channel",
+        "crypto investing documentary", "blockchain explained youtube",
+        "defi explained channel", "web3 youtube channel"
+      ],
+      animals: [
+        "wildlife youtube channel", "animal documentary channel",
+        "nature facts explained", "animal behavior youtube",
+        "wild animals documentary", "ocean documentary youtube"
+      ],
+      relationship: [
+        "psychology youtube channel", "relationship advice channel",
+        "human behavior explained", "social skills youtube",
+        "dating advice channel", "body language explained youtube"
+      ],
+      news: [
+        "facts documentary youtube", "explained news channel",
+        "world events documentary", "history documentary channel",
+        "current events explained", "geopolitics explained youtube"
+      ],
     };
 
     const terms = SEARCH_TERMS[niche] || [niche + " facts", niche + " explained"];
